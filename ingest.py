@@ -1,5 +1,6 @@
 import os
 import shutil
+import tempfile
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -26,16 +27,20 @@ def load_and_split_pdf(pdf_path: str):
 
 #Vector store
 
-def create_vectorstore(chunks, persist_directory: str = "chroma_db"):
+import tempfile
+
+def create_vectorstore(chunks, persist_directory: str = None):
+    if persist_directory is None:
+        persist_directory = tempfile.mkdtemp()
+    
     if os.path.exists(persist_directory):
-        print("Existing database found. Rebuilding fresh...")
+        import shutil
         shutil.rmtree(persist_directory)
     
-    
+    print("Loading embedding model...")
     embeddings = HuggingFaceEmbeddings(
         model_name="all-MiniLM-L6-v2"
     )
-
     
     print("Creating vector store...")
     vectorstore = Chroma.from_documents(

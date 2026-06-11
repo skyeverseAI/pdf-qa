@@ -72,16 +72,6 @@ if "messages" not in st.session_state:
 if "vectorstore" not in st.session_state:
     st.session_state.vectorstore = None
 
-# Auto-load existing ChromaDB on startup
-if "vectorstore" not in st.session_state and os.path.exists("chroma_db"):
-    with st.spinner("Loading existing document..."):
-        vectorstore = load_vectorstore()
-        st.session_state.vectorstore = vectorstore
-        st.session_state.retriever, st.session_state.prompt, st.session_state.llm = build_rag_chain(
-            vectorstore,
-            MODELS[0]
-        )
-        st.info("📚 Previous document loaded automatically.")
 
 # Main area
 st.title("📚 PDF Q&A System")
