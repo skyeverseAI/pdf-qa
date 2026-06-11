@@ -10,5 +10,3 @@ streamlit
 python-dotenv
 sentence-transformers
 openai
-httpx
-httpcore
