@@ -34,10 +34,16 @@ def build_rag_chain(vectorstore, model_name: str = "anthropic/claude-3-haiku"):
 )
     
     # Build prompt template
-    template = """You are a helpful assistant answering questions about a document.
-Use ONLY the following context to answer the question.
+    template = """You are a helpful chat assistant. You can chat with the user and answer questions about the document they upload.
+
+If the user is making small talk or asking a general question, respond naturally and conversationally.
+
+If the user is asking about the document, use ONLY the following context to answer.
 If the answer is not in the context, say "I don't know based on the provided document."
-Always cite which part of the context you used.
+Always cite which part of the context you used when answering from the document.
+
+Previous conversation:
+{chat_history}
 
 Context:
 {context}
@@ -54,13 +60,20 @@ Answer:"""
         model=model_name,
         openai_api_key=os.getenv("OPENROUTER_API_KEY"),
         openai_api_base="https://openrouter.ai/api/v1",
-        temperature=0.7
+        temperature=0.2
     )
     
     return retriever, prompt, llm
 
-def query_document(question: str, retriever, prompt, llm):
+def query_document(question: str, retriever, prompt, llm, chat_history: list = []):
     # Retrieve relevant chunks
+
+      # Format history into Human/Assistant lines
+    history_text = ""
+    for msg in chat_history[-6:]:          # cap at last 6 turns
+        role = "Human" if msg["role"] == "user" else "Assistant"
+        history_text += f"{role}: {msg['content']}\n"
+
     relevant_chunks = retriever.invoke(question)
     
     # Format context from chunks
@@ -72,7 +85,8 @@ def query_document(question: str, retriever, prompt, llm):
     # Format prompt
     formatted_prompt = prompt.format_messages(
         context=context,
-        question=question
+        question=question,
+        chat_history=history_text
     )
 
     # Stream answer from Claude

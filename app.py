@@ -26,12 +26,17 @@ MODELS = [
 with st.sidebar:
     st.title("⚙️ Settings")
     
-    selected_model = st.selectbox(
+    compare_mode = st.toggle("Compare models", value=False)
+    
+    if compare_mode:
+        model_a = st.selectbox("Model A", MODELS, index=0)
+        model_b = st.selectbox("Model B", MODELS, index=1)
+    else: selected_model = st.selectbox(
         "Select Model",
         options=MODELS,
         index=0
     )
-    
+
     st.divider()
     st.markdown("### 📄 Document")
     
@@ -55,7 +60,7 @@ with st.sidebar:
             st.session_state.vectorstore = vectorstore
             st.session_state.retriever, st.session_state.prompt, st.session_state.llm = build_rag_chain(
                 vectorstore,
-                selected_model
+                model_a if compare_mode else selected_model
             )
             st.session_state.messages = []
             
@@ -103,7 +108,8 @@ else:
                     question,
                     st.session_state.retriever,
                     st.session_state.prompt,
-                    st.session_state.llm
+                    st.session_state.llm,
+                    chat_history=st.session_state.messages[:-1]   # exclude the just-appended question
                 )
             
             st.markdown(answer)
