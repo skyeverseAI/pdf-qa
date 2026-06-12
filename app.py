@@ -18,8 +18,8 @@ MODELS = [
     "anthropic/claude-3-sonnet",
     "openai/gpt-4o-mini",
     "openai/gpt-4o",
-    "google/gemini-flash-1.5",
-    "meta-llama/llama-3.1-8b-instruct:free",
+    "google/gemini-3.1-flash-lite",
+    "meta-llama/llama-3.3-70b-instruct:free",
 ]
 
 # Sidebar
