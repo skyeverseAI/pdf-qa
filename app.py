@@ -85,42 +85,112 @@ if st.session_state.vectorstore is None:
     st.info("👈 Upload a PDF from the sidebar to get started.")
 else:
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-            if "sources" in message:
+        if message["role"] == "user":
+            with st.chat_message("user"):
+                st.markdown(message["content"])
+        elif message.get("comparison"):
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(f"**{message['model_a']}**")
+                st.markdown(message["answer_a"])
                 with st.expander("📄 Sources"):
-                    for i, chunk in enumerate(message["sources"]):
+                    for chunk in message["sources_a"]:
                         st.markdown(f"**Page {chunk.metadata.get('page', 'unknown')}**")
                         st.caption(chunk.page_content[:200] + "...")
+            with col2:
+                st.markdown(f"**{message['model_b']}**")
+                st.markdown(message["answer_b"])
+                with st.expander("📄 Sources"):
+                    for chunk in message["sources_b"]:
+                        st.markdown(f"**Page {chunk.metadata.get('page', 'unknown')}**")
+                        st.caption(chunk.page_content[:200] + "...")
+        else: 
+            with st.chat_message("assistant"):
+                st.markdown(message["content"])
+                if "sources" in message:
+                    with st.expander("📄 Sources"):
+                        for chunk in message["sources"]:
+                            st.markdown(f"**Page {chunk.metadata.get('page', 'unknown')}**")
+                            st.caption(chunk.page_content[:200] + "...")
 
     if question := st.chat_input("Ask a question about the document..."):
-        st.session_state.messages.append({
-            "role": "user",
-            "content": question
-        })
-        
+        st.session_state.messages.append({"role": "user", "content": question})
+
         with st.chat_message("user"):
             st.markdown(question)
 
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                answer, sources = query_document(
-                    question,
-                    st.session_state.retriever,
-                    st.session_state.prompt,
-                    st.session_state.llm,
-                    chat_history=st.session_state.messages[:-1]   # exclude the just-appended question
-                )
-            
-            st.markdown(answer)
-            
-            with st.expander("📄 Sources"):
-                for i, chunk in enumerate(sources):
-                    st.markdown(f"**Page {chunk.metadata.get('page', 'unknown')}**")
-                    st.caption(chunk.page_content[:200] + "...")
-        
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": answer,
-            "sources": sources
-        })
+        history = st.session_state.messages[:-1]
+
+        if compare_mode:
+            _, _, llm_a = build_rag_chain(st.session_state.vectorstore, model_a)
+            _, _, llm_b = build_rag_chain(st.session_state.vectorstore, model_b)
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.markdown(f"**{model_a}**")
+                with st.spinner(f"{model_a} thinking..."):
+                    answer_a, sources_a, time_a = query_document(
+                        question,
+                        st.session_state.retriever,
+                        st.session_state.prompt,
+                        llm_a,
+                        chat_history=history
+                    )
+                st.markdown(answer_a)
+                st.caption(f"⏱️ Responded in: {time_a} seconds")
+                with st.expander("📄 Sources"):
+                    for chunk in sources_a:
+                        st.markdown(f"**Page {chunk.metadata.get('page', 'unknown')}**")
+                        st.caption(chunk.page_content[:200] + "...")
+
+            with col2:
+                st.markdown(f"**{model_b}**")
+                with st.spinner(f"{model_b} thinking..."):
+                    answer_b, sources_b, time_b = query_document(
+                        question,
+                        st.session_state.retriever,
+                        st.session_state.prompt,
+                        llm_b,
+                        chat_history=history
+                    )
+                st.markdown(answer_b)
+                st.caption(f"⏱️ Responded in: {time_b} seconds")
+                with st.expander("📄 Sources"):
+                    for chunk in sources_b:
+                        st.markdown(f"**Page {chunk.metadata.get('page', 'unknown')}**")
+                        st.caption(chunk.page_content[:200] + "...")
+
+            st.session_state.messages.append({
+                "role": "assistant",
+                "comparison": True,
+                "model_a": model_a,
+                "model_b": model_b,
+                "answer_a": answer_a,
+                "answer_b": answer_b,
+                "sources_a": sources_a,
+                "sources_b": sources_b,
+            })
+
+        else:
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking..."):
+                    answer, sources, time_taken = query_document(
+                        question,
+                        st.session_state.retriever,
+                        st.session_state.prompt,
+                        st.session_state.llm,
+                        chat_history=history
+                    )
+                st.markdown(answer)
+                st.caption(f"⏱️ Responded in: {time_taken} seconds")
+                with st.expander("📄 Sources"):
+                    for chunk in sources:
+                        st.markdown(f"**Page {chunk.metadata.get('page', 'unknown')}**")
+                        st.caption(chunk.page_content[:200] + "...")
+
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": answer,
+                "sources": sources
+            })

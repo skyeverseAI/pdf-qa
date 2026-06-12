@@ -1,4 +1,5 @@
 import os
+import time
 from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
@@ -65,14 +66,20 @@ Answer:"""
     
     return retriever, prompt, llm
 
-def query_document(question: str, retriever, prompt, llm, chat_history: list = []):
+def query_document(question: str, retriever, prompt, llm, chat_history = None):
     # Retrieve relevant chunks
+    if chat_history is None:
+        chat_history = []
 
       # Format history into Human/Assistant lines
     history_text = ""
-    for msg in chat_history[-6:]:          # cap at last 6 turns
-        role = "Human" if msg["role"] == "user" else "Assistant"
-        history_text += f"{role}: {msg['content']}\n"
+    for msg in chat_history[-6:]:
+        if msg["role"] == "user":
+            history_text += f"Human: {msg['content']}\n"
+        elif msg.get("comparison"):
+            history_text += f"Assistant: {msg['answer_a']}\n"
+        else:
+            history_text += f"Assistant: {msg['content']}\n"
 
     relevant_chunks = retriever.invoke(question)
     
@@ -93,12 +100,14 @@ def query_document(question: str, retriever, prompt, llm, chat_history: list = [
     print("\nAnswer: ", end="", flush=True)
     full_response = ""
     
+    start = time.time()
     for chunk in llm.stream(formatted_prompt):
         print(chunk.content, end="", flush=True)
         full_response += chunk.content
+    elapsed = round(time.time() - start, 2)
     
     print("\n")
-    return full_response, relevant_chunks
+    return full_response, relevant_chunks, elapsed
 
 
 
